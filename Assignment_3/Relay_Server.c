@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
 
     // Creating a listening socket or printing an unsuccessful error
 	if ((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-		printf("Create Error listen_fd Socket : %d\n", errno);
+		printf("ERROR : Create listen_fd Socket : %d\n", errno);
 		exit(EXIT_FAILURE);
 	}
 
@@ -46,13 +46,13 @@ int main(int argc, char **argv) {
 
     // Binding listening socket or printing an unsuccessful error
 	if (bind(listen_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == -1) {
-		printf("Bind Error listen_fd Socket : %d\n", errno);
+		printf("ERROR : Bind listen_fd Socket : %d\n", errno);
 		exit(EXIT_FAILURE);
 	}
 
     // Listening at listening socket or printing an unsuccessful error
 	if (listen(listen_fd, MAX_BACKLOG) == -1) {
-		printf("Listen Error listen_fd Socket : %d\n", errno);
+		printf("ERROR : Listen listen_fd Socket : %d\n", errno);
 		exit(EXIT_FAILURE);
 	}
 
@@ -73,7 +73,7 @@ int main(int argc, char **argv) {
 	while (1) {
         // Checking the first max_fd descriptors from fd_set allset to see if they ready for reading  or printing an unsuccessful error
 		if ((nready = select(max_fd + 1, &allset, NULL, NULL, NULL)) == -1) {
-			printf("Select Error : %d\n", errno);
+			printf("ERROR : Select : %d\n", errno);
 			exit(EXIT_FAILURE);
 		}
 
@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
 
             // Accepting a connection at listening socket and creating a new connected socket or printing an unsuccessful error
 			if ((conn_fd = accept(listen_fd, (struct sockaddr *)&client_addr, &client_len)) == -1) {
-				printf("Accept Error : %d\n", errno);
+				printf("ERROR : Accept listen_fd Socket : %d\n", errno);
 				continue;
 			}
 
@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
 
 			n = read(sock_fd, buffer, BUFF_LEN);
 			if (n < 0) {
-				printf("Error Reading at sock_fd %d\n",sock_fd);
+				printf("ERROR : Reading at sock_fd %d\n",sock_fd);
 				close(sock_fd);
 				FD_CLR(sock_fd, &allset);
 				client[i] = -1;
@@ -158,7 +158,7 @@ int main(int argc, char **argv) {
 					fprintf(output,	"%s%c%d\n",	client_name, ' ', port);
 					fclose(output);
 				} else {
-					printf ("Unable to get Address\n");
+					printf ("ERROR : Unable to Extract Address\n");
 				}
 
 				char *resp = "RESPONSE : Peer_Node : 1";
@@ -167,7 +167,7 @@ int main(int argc, char **argv) {
 				printf ("Relay_Server Sending Message : %s\n", buffer);
 				n = write(sock_fd, buffer, strlen(buffer));
 				if (n < 0) {
-					perror("ERROR Writing to Socket");
+					perror("ERROR : Writing to Socket");
 					exit(1);
 				}
 			}
@@ -178,7 +178,7 @@ int main(int argc, char **argv) {
 				n = write(sock_fd, resp, strlen(resp));
 				n = read(sock_fd, buffer, BUFF_LEN);
 				if (n < 0) {
-					perror("ERROR Reading from Socket");
+					perror("ERROR : Reading from Socket");
 					exit(1);
 				}
 				printf ("Relay_Server Received Message from Peer_Client : %s\n", buffer);
@@ -205,7 +205,7 @@ int main(int argc, char **argv) {
 					// Sending information to the Peer_Client making request or printing an unsuccessful error
 					n = write(sock_fd, resp,	strlen(resp));
 					if (n < 0) {
-						perror("ERROR Writing to Socket");
+						perror("ERROR : Writing to Socket");
 						exit(1);
 					}
 				}
