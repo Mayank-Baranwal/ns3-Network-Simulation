@@ -9,8 +9,8 @@
 
 #define BUFF_LEN 1024
 
-int get_file(int sock_fd);
-int connect_to_peer(char *address, int port, char *filename);
+int find_peer_list(int sock_fd);
+int peer_connect(char *address, int port, char *filename);
 void handle_sigint(int);
 
 int sock_fd, serv_port, n;
@@ -21,7 +21,7 @@ char buffer[BUFF_LEN];
 int main(int argc, char **argv){
 
 	if (argc < 3) {
-		fprintf(stderr, "Please Specify IP Address and Port Number\nUsage %s IP_Address PORT\n", argv[0]);
+		fprintf(stderr, "Provide IP Address and Port Number\nUsage %s IP_Address PORT\n", argv[0]);
 		exit(0);
 	}
 
@@ -31,7 +31,7 @@ int main(int argc, char **argv){
 	sock_fd = socket(AF_INET, SOCK_STREAM, 0);
 
 	if (sock_fd < 0) {
-		perror("ERROR opening socket");
+		printf("ERROR opening socket");
 		exit(1);
 	}
 
@@ -50,17 +50,15 @@ int main(int argc, char **argv){
 
 	// Connecting to Relay_Server
 	if (connect(sock_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-		perror("ERROR : Connecting to Relay_Server");
+		printf("ERROR : Connecting to Relay_Server");
 		exit(1);
 	}
 
 	// Informing the Relay_Server that the request is by Peer_Client
 	printf("Connected to the Relay_Server...\nSending Request message...\n");
-	char *req = "REQUEST : Peer_Client";
-	n = write(sock_fd, req, strlen(req));
-
-	if (n < 0) {
-		perror("ERROR : Writing to Socket");
+	char request[100] = "REQUEST : Peer_Client";
+	if (write(sock_fd, request, strlen(request)) < 0) {
+		printf("ERROR : Writing to Socket");
 		exit(1);
 	}
 
@@ -69,7 +67,7 @@ int main(int argc, char **argv){
 	n = read(sock_fd, buffer, BUFF_LEN-1);
 
 	if (n < 0) {
-		perror("ERROR : Reading from Socket");
+		printf("ERROR : Reading from Socket");
 		exit(1);
 	}
 
@@ -77,10 +75,10 @@ int main(int argc, char **argv){
 
 	if (buffer[25] == '1') {
 		printf("RESPONSE : Client Accepted\nSuccessfully Connected\nFetching Peer_Node Information...\n");
-		n = get_file(sock_fd);
+		n = find_peer_list(sock_fd);
 
 		if (n < 0) {
-			perror ("ERROR Getting the Requested File from the Peer_Nodes");
+			printf("ERROR Getting the Requested File from the Peer_Nodes");
 			exit(1);
 		}
 	}
@@ -90,17 +88,17 @@ int main(int argc, char **argv){
 	return 0;
 }
 
-int get_file(int sock_fd)
+int find_peer_list(int sock_fd)
 {
 	// Requesting Active Peer_Node Information
-	char *req = "REQUEST : Peer_Node Info", buffer[BUFF_LEN];
+	char *request = "REQUEST : Peer_Node Info", buffer[BUFF_LEN];
 	int n;
 
 	// Sending message to Relay_Server
-	n = write(sock_fd, req, strlen(req));
+	n = write(sock_fd, request, strlen(request));
 
 	if (n < 0) {
-		perror("ERROR : Writing to Socket");
+		printf("ERROR : Writing to Socket");
 		exit(1);
 	}
 
@@ -109,14 +107,14 @@ int get_file(int sock_fd)
 	n = read(sock_fd, buffer, BUFF_LEN-1);
 
 	if (n < 0) {
-		perror("ERROR : Reading from Socket");
+		printf("ERROR : Reading from Socket");
 		exit(1);
 	}
 	printf("Received Response - \n%s\n", buffer);
 	printf("Gracefully Closing Connection with Relay_Server....\n");
 	n = shutdown(sock_fd, 0);
 	if (n < 0) {
-		perror("ERROR : Closing Connection");
+		printf("ERROR : Closing Connection");
 		exit(1);
 	}
 
@@ -148,7 +146,7 @@ int get_file(int sock_fd)
 		port_array[pn] = '\0';
 		port = atoi(port_array);
 		b++;
-		n = connect_to_peer(peer_name, port, file);
+		n = peer_connect(peer_name, port, file);
 		printf("%s %d %d\n", peer_name, port, n);
 		if (n < 0)
 			continue;
@@ -164,7 +162,7 @@ int get_file(int sock_fd)
 	return 0;
 }
 
-int connect_to_peer(char *address, int port, char *filename){
+int peer_connect(char *address, int port, char *filename){
 	int sock_fd, n;
 	struct sockaddr_in serv_addr;
 	struct hostent *server;
@@ -173,7 +171,7 @@ int connect_to_peer(char *address, int port, char *filename){
 
 	sock_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock_fd < 0)
-		perror("ERROR : Opening Socket");
+		printf("ERROR : Opening Socket");
 
 	inet_pton(AF_INET, address, &ipv4addr);
 	server = gethostbyaddr(&ipv4addr, sizeof ipv4addr, AF_INET);
@@ -190,52 +188,47 @@ int connect_to_peer(char *address, int port, char *filename){
 
 	// Connecting to Peer_Node specified in input fields
 	if (connect(sock_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-		perror("ERROR : Connecting");
+		printf("ERROR : Connecting");
 		exit(1);
 	}
 
-	printf ("Connection to the Peer_Node successful\nSending File Request Message with File Name : %s...\n",filename);
-	char req[50];
+	printf ("SUCCESSFUL Connection to the Peer_Node\n");
+	printf("Sending File Request Message with File Name : %s...\n",filename);
+	char request[50];
 	char *buff = "REQUEST : FILE :";
-	sprintf(req, "%s %s", buff, filename);
+	sprintf(request, "%s %s", buff, filename);
 
 	// Requesting currently connected Peer_Node for desired file
-	n = write(sock_fd, req, strlen(req));
-
-	if (n < 0) {
-		perror("ERROR : Writing to Socket");
+	if (write(sock_fd, request, strlen(request)) < 0) {
+		printf("ERROR : Writing to Socket");
 		exit(1);
 	}
 
 	// Reading Server Response
 	bzero(buffer, BUFF_LEN);
-	n = read(sock_fd, buffer, BUFF_LEN-1);
-	if (n < 0) {
-		perror("ERROR : Reading from Socket");
+	if (read(sock_fd, buffer, BUFF_LEN-1) < 0) {
+		printf("ERROR : Reading from Socket");
 		exit(1);
 	}
 	printf("received the reply :-  buffer content: %s\n", buffer);
 	if (strcmp(buffer, "File NOT FOUND") == 0) {
 		// Closing Connection
-		printf("Closing Connection Gracefully File NOT FOUND at this Peer_Node...\n");
-		n = shutdown(sock_fd, 0);
-		if (n < 0) {
-			perror("ERROR : Closing Connection");
+		printf("Gracefully Closing Connection...File NOT FOUND at this Peer_Node\n");
+		if (shutdown(sock_fd, 0) < 0) {
+			printf("ERROR : Closing Connection");
 			exit(1);
 		}
 	}
 	else if (strcmp(buffer, "File FOUND") == 0) {
 		printf("FOUND the file...\n");
-		n = read(sock_fd, buffer, BUFF_LEN-1);	//read the file content the peer is sending
-		if (n < 0) {
-			perror("ERROR reading from socket");
+		if (read(sock_fd, buffer, BUFF_LEN-1) < 0){ 	//read the file content the peer is sending
+			printf("ERROR reading from socket");
 			exit(1);
 		}
 		printf("File has the following content - \n%s", buffer);
 		printf("gracefully closing the connection with the peer....\n");
-		n = shutdown(sock_fd, 0);
-		if (n < 0) {
-			perror("ERROR closing the connection");
+		if (shutdown(sock_fd, 0) < 0); {
+			printf("ERROR closing the connection");
 			exit(1);
 		}		//if error
 
@@ -248,8 +241,6 @@ int connect_to_peer(char *address, int port, char *filename){
 	}			//if file found
 	else
 		printf("received unknown reply from the node\n");
-	//changes to do : allow for larger file transfer with a larger buffer, or file breakdown.
-	//assumption : the portname we save in the file, as peer port+200 and use that
 	return -1;
 }
 
@@ -260,3 +251,4 @@ void handle_sigint(int sig){
 	// stdout(flush);
 	exit(1);
 }
+	
