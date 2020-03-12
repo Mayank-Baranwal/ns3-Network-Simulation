@@ -17,9 +17,9 @@
 
 void handle_sigint(int);
 
-int listen_fd, conn_fd, sock_fd, max_fd, maxi, i, serv_port, nready, client[FD_SIZE], lens, flag;
+int listen_fd, conn_fd, sock_fd, max_fd, maxi, i, serv_port, available, client[FD_SIZE], lens, peer_type;
 ssize_t n;
-fd_set allset;
+fd_set client_fd_set;
 char buffer[BUFF_LEN];
 socklen_t client_len;
 struct sockaddr_in serv_addr, client_addr;
@@ -50,8 +50,10 @@ int main(int argc, char **argv) {
 	serv_addr.sin_port = htons(serv_port);
 
     // Binding listening socket or printing an unsuccessful error
-	if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0)
-    	perror("setsockopt(SO_REUSEADDR) failed");
+	if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0) {
+    	printf("setsockopt(SO_REUSEADDR) Failed");
+    	exit(EXIT_FAILURE);
+	}
 
 	if (bind(listen_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == -1) {
 		printf("ERROR : Bind listen_fd Socket : %d\n", errno);
@@ -72,27 +74,27 @@ int main(int argc, char **argv) {
 		client[i] = -1;
 	}
 
-    // Clearing fd_set allset
-	FD_ZERO(&allset);
+    // Clearing fd_set client_fd_set
+	FD_ZERO(&client_fd_set);
 
-    // Adding listen_fd to fd_set allset
-	FD_SET(listen_fd, &allset);
+    // Adding listen_fd to fd_set client_fd_set
+	FD_SET(listen_fd, &client_fd_set);
 	signal(SIGINT, handle_sigint);
 
 	while (1) {
-        // Checking the first max_fd descriptors from fd_set allset to see if they ready for reading  or printing an unsuccessful error
-		if ((nready = select(max_fd + 1, &allset, NULL, NULL, NULL)) == -1) {
+        // Checking the first max_fd descriptors from fd_set client_fd_set to see if they ready for reading  or printing an unsuccessful error
+		if ((available = select(max_fd + 1, &client_fd_set, NULL, NULL, NULL)) == -1) {
 			printf("ERROR : Select : %d\n", errno);
 			exit(EXIT_FAILURE);
 		}
 
         //If no one is ready to be read; continue
-		if (nready <= 0){
+		if (available <= 0){
 			continue;
 		}
 
         // Activity at listening socket (indicating request for new connection)
-		if (FD_ISSET(listen_fd, &allset)){
+		if (FD_ISSET(listen_fd, &client_fd_set)){
 			client_len = sizeof(client_addr);
 			printf("Connection Request at Listening Socket...\n");
 
@@ -116,8 +118,8 @@ int main(int argc, char **argv) {
 				continue;
 			}
 
-            // Adding newly created connected socket to the fd_set allset
-			FD_SET(conn_fd, &allset);
+            // Adding newly created connected socket to the fd_set client_fd_set
+			FD_SET(conn_fd, &client_fd_set);
 
 			if (conn_fd > max_fd)	{
 				max_fd = conn_fd;
@@ -128,36 +130,36 @@ int main(int argc, char **argv) {
 			}
 		}
 		sock_fd = conn_fd;
-		if (FD_ISSET(sock_fd, &allset)) 	{
+		if (FD_ISSET(sock_fd, &client_fd_set)) 	{
 			memset(buffer, 0, sizeof(buffer));
 
 			n = read(sock_fd, buffer, BUFF_LEN);
 			if (n < 0) {
-				printf("ERROR : Reading at sock_fd %d\n",sock_fd);
+				printf("ERROR : Reading at sock_fd %d failed\n",sock_fd);
 				close(sock_fd);
-				FD_CLR(sock_fd, &allset);
+				FD_CLR(sock_fd, &client_fd_set);
 				client[i] = -1;
 				continue;
 			}
 			if (n == 0) {
-				printf("No Data at sock_fd %d\n",sock_fd);
+				printf("No request data found at sock_fd %d\n",sock_fd);
 				close(sock_fd);
-				FD_CLR(sock_fd, &allset);
+				FD_CLR(sock_fd, &client_fd_set);
 				client[i] = -1;
 				continue;
 			}
 			printf("Relay_Server Received Message : %s\n", buffer);
 
 			if (strcmp(buffer, "REQUEST : Peer_Node") == 0)
-				flag = 1;
+				peer_type = 1;
 
 			if (strcmp(buffer, "REQUEST : Peer_Client") == 0)
-				flag = 2;
+				peer_type = 2;
 
 			int port = client_addr.sin_port;
 
 			// If the request is by a Peer_Node
-			if (flag == 1) {
+			if (peer_type == 1) {
 				printf("Port for Communication with Peer_Node : %d\n", port);
 
 				// Storing the IP address and port number of the Peer_Node or printing an unsuccessful error
@@ -167,28 +169,29 @@ int main(int argc, char **argv) {
 					fprintf(output,	"%s%c%d\n",	client_name, ' ', port);
 					fclose(output);
 				} else {
-					printf ("ERROR : Unable to Extract Address\n");
+					printf ("ERROR : Cannot Extract Address\n");
 				}
 
 				char *resp = "RESPONSE : Peer_Node : 1";
 				char buffer[BUFF_LEN];
 				sprintf(buffer, "%s %d", resp, port);
 				printf ("Relay_Server Sending Message : %s\n", buffer);
-				n = write(sock_fd, buffer, strlen(buffer));
-				if (n < 0) {
-					perror("ERROR : Writing to Socket");
-					exit(1);
+				if (write(sock_fd, buffer, strlen(buffer)) < 0) {
+					printf("ERROR : Writing in corresponding socket failed");
+					exit(EXIT_FAILURE);
 				}
 			}
 
 			// If the request is by a Peer_Client
-			else if (flag == 2) {
+			else if (peer_type == 2) {
 				char *resp = "RESPONSE : Peer_Client : 1";
-				n = write(sock_fd, resp, strlen(resp));
-				n = read(sock_fd, buffer, BUFF_LEN);
-				if (n < 0) {
-					perror("ERROR : Reading from Socket");
-					exit(1);
+				if (write(sock_fd, resp, strlen(resp)) < 0) {
+					printf("ERROR : Writing in corresponding socket failed");
+					exit(EXIT_FAILURE);
+				}						
+				if (read(sock_fd, buffer, BUFF_LEN) < 0) {
+					printf("ERROR : Reading from corresponding socket failed");
+					exit(EXIT_FAILURE);
 				}
 				printf ("Relay_Server Received Message from Peer_Client : %s\n", buffer);
 
@@ -212,10 +215,9 @@ int main(int argc, char **argv) {
 					printf ("Relay_Server has Peer_Node Information :\n%s", resp);
 
 					// Sending information to the Peer_Client making request or printing an unsuccessful error
-					n = write(sock_fd, resp,	strlen(resp));
-					if (n < 0) {
-						perror("ERROR : Writing to Socket");
-						exit(1);
+					if (write(sock_fd, resp, strlen(resp)) < 0) {
+						printf("ERROR : Writing in corresponding socket failed");
+						exit(EXIT_FAILURE);
 					}
 				}
 			}
@@ -223,9 +225,9 @@ int main(int argc, char **argv) {
 			else
 				printf("ERROR : Unknown REQUEST Message, Please Check Syntax\n");
 			close(sock_fd);
-			FD_CLR(sock_fd, &allset);
+			FD_CLR(sock_fd, &client_fd_set);
 			client[i] = -1;
-			printf("Gracefully Closing Connection\n");
+			printf("Gracefully Closing Connection...\n");
 
 		}
 	}
@@ -235,15 +237,14 @@ int main(int argc, char **argv) {
 
 void handle_sigint(int sig){
 	close(listen_fd);
-	FD_CLR(listen_fd, &allset);
+	FD_CLR(listen_fd, &client_fd_set);
 	for (i = 0; i < FD_SIZE; i++)	{
 		if ((sock_fd = client[i]) > 0)	{
 			close(sock_fd);
-			FD_CLR(sock_fd, &allset);
+			FD_CLR(sock_fd, &client_fd_set);
 			client[i] = -1;
 		}
 	}
 	fflush(stdout);
-	// stdout(flush);
 	exit(1);
 }

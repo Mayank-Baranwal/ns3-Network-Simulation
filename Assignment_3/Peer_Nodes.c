@@ -53,28 +53,26 @@ int main(int argc, char **argv)
 
     // Connecting to the Relay_Server or printing unsuccessful error 
 	if (connect(sock_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-		perror("ERROR : Connecting to Relay_Server");
-		exit(1);
+		printf("ERROR : Connecting to Relay_Server");
+		exit(EXIT_FAILURE);
 	}
 
 	printf("Connected to the Relay_Server...\n Sending Request message...\n");
 	char *req = "REQUEST : Peer_Node";
 
 	// Sending request for Peer_Node information to the Relay_Server or printing unsuccessful error
-	n = write(sock_fd, req, strlen(req));
 
-	if (n < 0) {
-		perror("ERROR : Writing to Socket");
-		exit(1);
+	if (write(sock_fd, req, strlen(req)) < 0) {
+		printf("ERROR : Writing to Socket");
+		exit(EXIT_FAILURE);
 	}
 
 	// Reading Relay_Server response or printing unsuccessful error
 	bzero(buffer, BUFF_LEN);
-	n = read(sock_fd, buffer, BUFF_LEN);
 
-	if (n < 0) {
-		perror("ERROR : Reading from Socket");
-		exit(1);
+	if (read(sock_fd, buffer, BUFF_LEN) < 0) {
+		printf("ERROR : Reading from Socket");
+		exit(EXIT_FAILURE);
 	}
 
 	printf("Peer_Node Received : \n%s\n", buffer);
@@ -83,10 +81,10 @@ int main(int argc, char **argv)
 		printf("RESPONSE : Peer_Node Accepted\nSUCESSFULLY Connected\n");
 		// Close the connection with Relay_Server gracefully
 		printf("Gracefully Closing Connection ...\n");
-		n = shutdown(sock_fd, 0);
-		if (n < 0) {
-			perror("ERROR : Closing Connection");
-			exit(1);
+
+		if (shutdown(sock_fd, 0) < 0) {
+			printf("ERROR : Closing Connection");
+			exit(EXIT_FAILURE);
 		}
 
 		// Starting server behaviour of Peer_Node if successfully connected to server
@@ -109,17 +107,8 @@ int serv_port;
 char cur_port[10];
 
 int start_server(char *port){
-	// int listen_fd, conn_fd, sock_fd, max_fd, maxi, i, nready, client[FD_SIZE],lens;
-	// ssize_t n;
-	// fd_set allset;
-	// char buffer[BUFF_LEN];
-	// socklen_t client_len;
-	// struct sockaddr_in serv_addr, client_addr;
 	serv_port = atoi(port);
 	strcpy(cur_port,port);
-	// printf("%d\n%s\n", serv_port, port);
-
-	// Creating a listening socket or printing an unsuccessful error
 	if ((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
 		printf("ERROR : Create listen_fd Socket : %d\n", errno);
 		exit(EXIT_FAILURE);
@@ -132,7 +121,7 @@ int start_server(char *port){
 
 	// Binding listening socket or printing an unsuccessful error
 	if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0)
-    	perror("setsockopt(SO_REUSEADDR) failed");
+    	printf("setsockopt(SO_REUSEADDR) failed");
 
 	if (bind(listen_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == -1) {
 		printf("ERROR : Bind listen_fd Socket : %d\n", errno);
@@ -230,25 +219,25 @@ int start_server(char *port){
 					}
 
 					printf("Peer_Node Received : %s\n", buffer);
-					char a[] = "REQUEST : FILE : ";
-					int i, flag = 0;
-					for (i = 0; i < strlen(a); i++) {
-						if (a[i] == buffer[i])
-							flag = 1;
+					char req_format[] = "REQUEST : FILE : ";
+					int i, req_type = 0;
+					for (i = 0; i < strlen(req_format); i++) {
+						if (req_format[i] == buffer[i])
+							req_type = 1;
 						else {
-							flag = 0;
+							req_type = 0;
 							break;
 						}
 					}
-					if (flag){
-						printf("Received Request for the File : %s\n", &buffer[strlen(a)]);
-						FILE *file = fopen(&buffer[strlen(a)], "r");
+					if (req_type){
+						printf("Received Request for the File : %s\n", &buffer[strlen(req_format)]);
+						FILE *file = fopen(&buffer[strlen(req_format)], "r");
 						if (file == NULL) {
 							printf("Requested File NOT Found\n");
 							char response[] = "File NOT FOUND";
 							n = write(sock_fd, response, strlen(response));
 							if (n < 0)
-								perror("ERROR : Writing to Socket");
+								printf("ERROR : Writing to Socket");
 							else
 								printf("Requested File NOT Found and message written to Peer_Client\n");
 						}
@@ -259,8 +248,8 @@ int start_server(char *port){
 							char response[] = "File FOUND";
 							n = write(sock_fd, response, strlen(response));
 							if (n < 0){
-								perror("ERROR : Writing to Socket");
-								exit(1);
+								printf("ERROR : Writing to Socket");
+								exit(EXIT_FAILURE);
 							}
 							else
 								printf("Requested File Found and message written to Peer_Client\n");
@@ -282,8 +271,8 @@ int start_server(char *port){
 							// Sending the requested content to client
 							n = write(sock_fd, resp, strlen(resp));
 							if (n < 0) {
-								perror("ERROR : Writing to Socket");
-								exit(1);
+								printf("ERROR : Writing to Socket");
+								exit(EXIT_FAILURE);
 							}
 							else {
 								printf("File Sent\n Gracefully Closing Connection...\n");
@@ -319,5 +308,5 @@ void handle_sigint(int sig){
 	}
 
 	fflush(stdout);
-	exit(1);
+	exit(EXIT_FAILURE);
 }
