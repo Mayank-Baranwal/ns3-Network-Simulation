@@ -21,7 +21,7 @@ char buffer[BUFF_LEN];
 int main(int argc, char **argv){
 
 	if (argc < 3) {
-		fprintf(stderr, "Provide IP Address and Port Number\nUsage %s IP_Address PORT\n", argv[0]);
+		fprintf(stderr, "Provide IP Address and Port Number\nFormat %s IP_Address PORT\n", argv[0]);
 		exit(0);
 	}
 
@@ -50,15 +50,15 @@ int main(int argc, char **argv){
 
 	// Connecting to Relay_Server
 	if (connect(sock_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-		printf("ERROR : Connecting to Relay_Server");
+		printf("ERROR : Unable to Connect to Relay_Server");
 		exit(1);
 	}
 
 	// Informing the Relay_Server that the request is by Peer_Client
-	printf("Connected to the Relay_Server...\nSending Request message...\n");
+	printf("Relay_Server Connection Established...\nSending REQUEST message...\n");
 	char request[100] = "REQUEST : Peer_Client";
 	if (write(sock_fd, request, strlen(request)) < 0) {
-		printf("ERROR : Writing to Socket");
+		printf("ERROR : Unable to Write to Socket");
 		exit(1);
 	}
 
@@ -74,16 +74,16 @@ int main(int argc, char **argv){
 	printf("%s\n", buffer);
 
 	if (buffer[25] == '1') {
-		printf("RESPONSE : Client Accepted\nSuccessfully Connected\nFetching Peer_Node Information...\n");
+		printf("RESPONSE : Client Accepted\nSUCCESSFUL Connection\nFetching Peer_Node Information...\n");
 		n = find_peer_list(sock_fd);
 
 		if (n < 0) {
-			printf("ERROR Getting the Requested File from the Peer_Nodes");
+			printf("ERROR : Unable to Retrieve Peer_Nodes");
 			exit(1);
 		}
 	}
    else
-		printf("Node Not Accepted by the Relay_Server\nTry Again...\n");
+		printf("Node Rejected by the Relay_Server\nExiting...\n");
 
 	return 0;
 }
@@ -107,7 +107,7 @@ int find_peer_list(int sock_fd)
 	n = read(sock_fd, buffer, BUFF_LEN-1);
 
 	if (n < 0) {
-		printf("ERROR : Reading from Socket");
+		printf("ERROR : Unable to Read from Socket");
 		exit(1);
 	}
 	printf("Received Response - \n%s\n", buffer);
@@ -157,7 +157,7 @@ int find_peer_list(int sock_fd)
 	}
 
 	if (!flag)
-		printf("File NOT found on ANY Peer_Node\n");
+		printf("File DOES NOT exist on ANY Peer_Node\n");
 
 	return 0;
 }
@@ -171,7 +171,7 @@ int peer_connect(char *address, int port, char *filename){
 
 	sock_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock_fd < 0)
-		printf("ERROR : Opening Socket");
+		printf("ERROR : Unable to Open Socket");
 
 	inet_pton(AF_INET, address, &ipv4addr);
 	server = gethostbyaddr(&ipv4addr, sizeof ipv4addr, AF_INET);
@@ -193,27 +193,27 @@ int peer_connect(char *address, int port, char *filename){
 	}
 
 	printf ("SUCCESSFUL Connection to the Peer_Node\n");
-	printf("Sending File Request Message with File Name : %s...\n",filename);
+	printf("Sending Request for Message File with File Name : %s...\n",filename);
 	char request[50];
 	char *buff = "REQUEST : FILE :";
 	sprintf(request, "%s %s", buff, filename);
 
 	// Requesting currently connected Peer_Node for desired file
 	if (write(sock_fd, request, strlen(request)) < 0) {
-		printf("ERROR : Writing to Socket");
+		printf("ERROR : Unable to Write to Socket");
 		exit(1);
 	}
 
 	// Reading Server Response
 	bzero(buffer, BUFF_LEN);
 	if (read(sock_fd, buffer, BUFF_LEN-1) < 0) {
-		printf("ERROR : Reading from Socket");
+		printf("ERROR : Unable to Read from Socket");
 		exit(1);
 	}
 	printf("received the reply :-  buffer content: %s\n", buffer);
 	if (strcmp(buffer, "File NOT FOUND") == 0) {
 		// Closing Connection
-		printf("Gracefully Closing Connection...File NOT FOUND at this Peer_Node\n");
+		printf("Gracefully Closing Connection...File DOES NOT Exist at this Peer_Node\n");
 		if (shutdown(sock_fd, 0) < 0) {
 			printf("ERROR : Closing Connection");
 			exit(1);
@@ -225,22 +225,22 @@ int peer_connect(char *address, int port, char *filename){
 			printf("ERROR reading from socket");
 			exit(1);
 		}
-		printf("File has the following content - \n%s", buffer);
-		printf("gracefully closing the connection with the peer....\n");
+		printf("File description - \n%s", buffer);
+		printf("Gracefully Closing Connection with Peer_Node....\n");
 		if (shutdown(sock_fd, 0) < 0); {
-			printf("ERROR closing the connection");
+			printf("ERROR : Aborting the connection");
 			exit(1);
 		}		//if error
 
-		//save the file on the client too
-		FILE *save = fopen("sample2.txt", "w");
-		fprintf(save, "%s", buffer);
-		fclose(save);
+		//tp the file on the client too
+		FILE *tp = fopen("Peer_Copy.txt", "w");
+		fprintf(tp, "%s", buffer);
+		fclose(tp);
 
 		return 0;
-	}			//if file found
+	}
 	else
-		printf("received unknown reply from the node\n");
+		printf("Peer_Node Unresponsive\n");
 	return -1;
 }
 
