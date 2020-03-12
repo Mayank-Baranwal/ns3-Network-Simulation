@@ -9,21 +9,26 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <signal.h> 
 
 #define BUFF_LEN 1024
 #define MAX_BACKLOG 100
 #define FD_SIZE 100
 
+void handle_sigint(int);
+
+int listen_fd, conn_fd, sock_fd, max_fd, maxi, i, serv_port, nready, client[FD_SIZE], lens, flag;
+ssize_t n;
+fd_set allset;
+char buffer[BUFF_LEN];
+socklen_t client_len;
+struct sockaddr_in serv_addr, client_addr;
+
 int main(int argc, char **argv) {
-	int listen_fd, conn_fd, sock_fd, max_fd, maxi, i, serv_port, nready, client[FD_SIZE], lens, flag;
-	ssize_t n;
-	fd_set allset;
-	char buffer[BUFF_LEN];
-	socklen_t client_len;
-	struct sockaddr_in serv_addr, client_addr;
+
 
     // Creating Peer_Nodes_Info_at_Relay_Server.txt to be filled with Peer_Nodes' information (IP Address and PORT)
-	FILE *output;
+	FILE *output, *input;
 	output = fopen("Peer_Nodes_Info_at_Relay_Server.txt", "w");
 	fclose(output);
 
@@ -45,6 +50,9 @@ int main(int argc, char **argv) {
 	serv_addr.sin_port = htons(serv_port);
 
     // Binding listening socket or printing an unsuccessful error
+	if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0)
+    	perror("setsockopt(SO_REUSEADDR) failed");
+
 	if (bind(listen_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == -1) {
 		printf("ERROR : Bind listen_fd Socket : %d\n", errno);
 		exit(EXIT_FAILURE);
@@ -69,6 +77,7 @@ int main(int argc, char **argv) {
 
     // Adding listen_fd to fd_set allset
 	FD_SET(listen_fd, &allset);
+	signal(SIGINT, handle_sigint);
 
 	while (1) {
         // Checking the first max_fd descriptors from fd_set allset to see if they ready for reading  or printing an unsuccessful error
@@ -210,6 +219,7 @@ int main(int argc, char **argv) {
 					}
 				}
 			}
+
 			else
 				printf("ERROR : Unknown REQUEST Message, Please Check Syntax\n");
 			close(sock_fd);
@@ -221,4 +231,19 @@ int main(int argc, char **argv) {
 	}
 
 	return 0;
+}
+
+void handle_sigint(int sig){
+	close(listen_fd);
+	FD_CLR(listen_fd, &allset);
+	for (i = 0; i < FD_SIZE; i++)	{
+		if ((sock_fd = client[i]) > 0)	{
+			close(sock_fd);
+			FD_CLR(sock_fd, &allset);
+			client[i] = -1;
+		}
+	}
+	fflush(stdout);
+	// stdout(flush);
+	exit(1);
 }

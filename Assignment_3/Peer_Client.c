@@ -5,18 +5,20 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <signal.h> 
 
 #define BUFF_LEN 1024
 
 int get_file(int sock_fd);
 int connect_to_peer(char *address, int port, char *filename);
+void handle_sigint(int);
+
+int sock_fd, serv_port, n;
+struct sockaddr_in serv_addr;
+struct hostent *server;
+char buffer[BUFF_LEN];
 
 int main(int argc, char **argv){
-	int sock_fd, serv_port, n;
-	struct sockaddr_in serv_addr;
-	struct hostent *server;
-
-	char buffer[BUFF_LEN];
 
 	if (argc < 3) {
 		fprintf(stderr, "Please Specify IP Address and Port Number\nUsage %s IP_Address PORT\n", argv[0]);
@@ -78,8 +80,7 @@ int main(int argc, char **argv){
 		n = get_file(sock_fd);
 
 		if (n < 0) {
-			perror
-			    ("ERROR : Getting the Requested File from the Peer_Nodes");
+			perror ("ERROR Getting the Requested File from the Peer_Nodes");
 			exit(1);
 		}
 	}
@@ -168,7 +169,7 @@ int connect_to_peer(char *address, int port, char *filename){
 	struct sockaddr_in serv_addr;
 	struct hostent *server;
 	struct in_addr ipv4addr;
-	char buffer[BUFF_LEN];
+	char buffer[BUFF_LEN];	
 
 	sock_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock_fd < 0)
@@ -250,4 +251,12 @@ int connect_to_peer(char *address, int port, char *filename){
 	//changes to do : allow for larger file transfer with a larger buffer, or file breakdown.
 	//assumption : the portname we save in the file, as peer port+200 and use that
 	return -1;
+}
+
+
+void handle_sigint(int sig){
+	close(sock_fd);
+	fflush(stdout);
+	// stdout(flush);
+	exit(1);
 }

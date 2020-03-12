@@ -8,12 +8,17 @@
 #include <sys/select.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <signal.h> 
 
 #define BUFF_LEN 1024
 #define MAX_BACKLOG 100
 #define FD_SIZE 100
 
-int start_server(char *port);
+int start_server(char *);
+void handle_sigint(int);
+
+int serv_port2;
+struct hostent *server;
 
 int main(int argc, char **argv)
 {
@@ -33,6 +38,7 @@ int main(int argc, char **argv)
 	// Creating a socket or printing unsuccessful error 
 	sock_fd = socket(AF_INET, SOCK_STREAM, 0);
 	serv_port = atoi(argv[2]);
+	serv_port2 = atoi(argv[2]);
 	server = gethostbyname(argv[1]);
 
 	if (server == NULL) {
@@ -85,7 +91,6 @@ int main(int argc, char **argv)
 
 		// Starting server behaviour of Peer_Node if successfully connected to server
 		printf("Port of the Peer_Client for Listening : %s\n",&buffer[25]);
-
 		start_server(&buffer[25]);
 	} else
 		printf("ERROR : Node NOT Accepted by the Relay_Server\nTry Again...\n");
@@ -94,14 +99,25 @@ int main(int argc, char **argv)
 
 }
 
+int listen_fd, conn_fd, sock_fd, max_fd, maxi, i, nready, client[FD_SIZE],lens;
+ssize_t n;
+fd_set allset;
+char buffer[BUFF_LEN];
+socklen_t client_len;
+struct sockaddr_in serv_addr, client_addr;
+int serv_port;
+char cur_port[10];
+
 int start_server(char *port){
-	int listen_fd, conn_fd, sock_fd, max_fd, maxi, i, nready, client[FD_SIZE];
-	ssize_t n;
-	fd_set allset;
-	char buffer[BUFF_LEN];
-	socklen_t client_len;
-	struct sockaddr_in serv_addr, client_addr;
-	int serv_port = atoi(port);
+	// int listen_fd, conn_fd, sock_fd, max_fd, maxi, i, nready, client[FD_SIZE],lens;
+	// ssize_t n;
+	// fd_set allset;
+	// char buffer[BUFF_LEN];
+	// socklen_t client_len;
+	// struct sockaddr_in serv_addr, client_addr;
+	serv_port = atoi(port);
+	strcpy(cur_port,port);
+	// printf("%d\n%s\n", serv_port, port);
 
 	// Creating a listening socket or printing an unsuccessful error
 	if ((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -115,6 +131,9 @@ int start_server(char *port){
 	serv_addr.sin_port = htons(serv_port);
 
 	// Binding listening socket or printing an unsuccessful error
+	if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0)
+    	perror("setsockopt(SO_REUSEADDR) failed");
+
 	if (bind(listen_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == -1) {
 		printf("ERROR : Bind listen_fd Socket : %d\n", errno);
 		exit(EXIT_FAILURE);
@@ -139,6 +158,7 @@ int start_server(char *port){
 
 	// Adding listen_fd to fd_set allset
 	FD_SET(listen_fd, &allset);
+	signal(SIGINT, handle_sigint);
 
 	while (1) {
 
@@ -284,4 +304,20 @@ int start_server(char *port){
 			}
 		}
 	}
+}
+
+
+void handle_sigint(int sig){
+	close(listen_fd);
+	FD_CLR(listen_fd, &allset);
+	for (i = 0; i < FD_SIZE; i++)	{
+		if ((sock_fd = client[i]) > 0)	{
+			close(sock_fd);
+			FD_CLR(sock_fd, &allset);
+			client[i] = -1;
+		}
+	}
+
+	fflush(stdout);
+	exit(1);
 }
