@@ -229,11 +229,16 @@ int main(int argc, char **argv) {
 				char client_name[INET_ADDRSTRLEN], peerName[INET_ADDRSTRLEN];
 				int portNum;	
 				int port_to_be_deleted = atoi(&buffer[sizeof("REQUEST : Peer_Exit")]);
-				printf("Peer_Node with port %d \n", port_to_be_deleted);
+				if (inet_ntop (AF_INET, &client_addr.sin_addr.s_addr, client_name, sizeof(client_name)) != NULL) {
+					printf("Delete Peer_Node with port %d address %s \n", port_to_be_deleted, client_name);
+				} else {
+					printf ("ERROR : Cannot Extract Address\n");
+				}
+
 				output = fopen("Peer_Nodes_Info_at_Relay_Server.txt", "r");
 				input = fopen("Peer_Nodes_Info_at_Relay_Server_temp.txt", "w");
 				while(fscanf(output,"%s %d",peerName,&portNum)!=EOF){
-					if(port_to_be_deleted == portNum){
+					if(strcmp(peerName,client_name)==0 && port_to_be_deleted == portNum){
 						continue;
 					}
 					fprintf(input, "%s %d\n", peerName, portNum);
