@@ -227,10 +227,10 @@ int main(int argc, char **argv) {
 			}
 			else if(peer_type ==3){
 				char client_name[INET_ADDRSTRLEN], peerName[INET_ADDRSTRLEN];
-				int portNum;	
+				int portNum;
 				int port_to_be_deleted = atoi(&buffer[sizeof("REQUEST : Peer_Exit")]);
 				if (inet_ntop (AF_INET, &client_addr.sin_addr.s_addr, client_name, sizeof(client_name)) != NULL) {
-					printf("Delete Peer_Node with port %d address %s \n", port_to_be_deleted, client_name);
+					printf("Deleted Peer_Node with port %d address %s \n", port_to_be_deleted, client_name);
 				} else {
 					printf ("ERROR : Cannot Extract Address\n");
 				}
@@ -248,9 +248,8 @@ int main(int argc, char **argv) {
 			   fclose(input);
 			   remove("Peer_Nodes_Info_at_Relay_Server.txt");
 			   rename("Peer_Nodes_Info_at_Relay_Server_temp.txt", "Peer_Nodes_Info_at_Relay_Server.txt");
-			   printf("Removal of Peer_Node with port %d Successful\n", port_to_be_deleted);
-				
-				   
+
+
 			}
 			else
 				printf("ERROR : Unknown REQUEST Message, Please Check Syntax\n");

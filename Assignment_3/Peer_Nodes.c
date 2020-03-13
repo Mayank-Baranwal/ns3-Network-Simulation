@@ -83,7 +83,7 @@ int start_server(char *port){
 	char buffer[BUFF_LEN];
 	socklen_t client_len;
 	ssize_t n;
-	struct sockaddr_in serv_addr, client_addr;	
+	struct sockaddr_in serv_addr, client_addr;
 	serv_port = atoi(port);
 	char cur_port[10];
 
@@ -251,7 +251,7 @@ int start_server(char *port){
 								exit(EXIT_FAILURE);
 							}
 							else {
-								printf("File Sent Successfully\n Gracefully Closing Connection with Peer_Client...\n");
+								printf("File Sent Successfully\nGracefully Closing Connection with Peer_Client...\n");
 							}
 						}
 					}
