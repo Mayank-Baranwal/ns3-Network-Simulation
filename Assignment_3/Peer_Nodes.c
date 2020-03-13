@@ -308,10 +308,11 @@ void handle_sigint(int sig){
 			client[i] = -1;
 		}
 	}
-	sock_fd = connecting_to_relay_server();
 	// Informing the Relay_Server that the request Peer_Node is exiting or printing unsuccessful error
 	char request[100];
 	sprintf(request,"REQUEST : Peer_Exit ");
+	printf("%s\n", request);
+	sock_fd = connecting_to_relay_server();
 	char Port_String[10];
 	sprintf(Port_String,"%d",serv_port);
 	strcat(request, Port_String);
@@ -319,6 +320,7 @@ void handle_sigint(int sig){
 		printf("ERROR : Cannot Write to Relay_Server");
 		exit(EXIT_FAILURE);
 	}
+	printf("Relay_Server Notified of Peer_Node Closure\n");
 
 
 	fflush(stdout);

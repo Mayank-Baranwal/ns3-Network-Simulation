@@ -159,7 +159,7 @@ int main(int argc, char **argv) {
 			if (strstr(buffer, "Exit") != NULL)
 				peer_type = 3;
 
-			printf("%d\n", peer_type);
+			// printf("%d\n", peer_type);
 			int port = client_addr.sin_port;
 
 			// If the request is by a Peer_Node
