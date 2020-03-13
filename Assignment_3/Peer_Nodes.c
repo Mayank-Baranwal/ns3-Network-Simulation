@@ -8,109 +8,89 @@
 #include <sys/select.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <signal.h> 
+#include <signal.h>
 
 #define BUFF_LEN 1024
 #define MAX_BACKLOG 100
 #define FD_SIZE 100
 
 int start_server(char *);
+int connecting_to_relay_server();
 void handle_sigint(int);
 
-int serv_port2;
 struct hostent *server;
+int relay_server_port;
 
 int main(int argc, char **argv)
 {
-	int listen_fd, conn_fd, sock_fd, max_fd, maxi, i, nready, client[FD_SIZE], serv_port;
-	ssize_t n;
-	fd_set allset;
+	int sock_fd;
 	char buffer[BUFF_LEN];
-	socklen_t client_len;
-	struct sockaddr_in serv_addr, client_addr;
-	struct hostent *server;
 
 	if (argc < 3) {
-		fprintf(stderr, "Please Specify IP Address and Port Number\nUsage %s IP_Address PORT\n", argv[0]);
+		fprintf(stderr, "Please Specify Relay_Server's IP Address and Port Number\nUSAGE : %s IP_Address Port_Number\n", argv[0]);
 		exit(0);
 	}
-
-	// Creating a socket or printing unsuccessful error 
-	sock_fd = socket(AF_INET, SOCK_STREAM, 0);
-	serv_port = atoi(argv[2]);
-	serv_port2 = atoi(argv[2]);
 	server = gethostbyname(argv[1]);
+	relay_server_port = atoi(argv[2]);
+	sock_fd = connecting_to_relay_server();
 
-	if (server == NULL) {
-		fprintf(stderr, "ERROR : No Such Host\n");
-		exit(0);
-	}
+	// Informing the Relay_Server that the request is by Peer_Node or printing unsuccessful error
+	char *request = "REQUEST : Peer_Node";
 
-	bzero(&serv_addr, sizeof(serv_addr));
-	serv_addr.sin_family = AF_INET;
-	bcopy((char *)server->h_addr,(char *)&serv_addr.sin_addr.s_addr,server->h_length);
-	serv_addr.sin_port = htons(serv_port);
-
-    // Connecting to the Relay_Server or printing unsuccessful error 
-	if (connect(sock_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-		printf("ERROR : Connecting to Relay_Server");
+	if (write(sock_fd, request, strlen(request)) < 0) {
+		printf("ERROR : Cannot Write to Relay_Server");
 		exit(EXIT_FAILURE);
 	}
 
-	printf("Connected to the Relay_Server...\n Sending Request message...\n");
-	char *req = "REQUEST : Peer_Node";
-
-	// Sending request for Peer_Node information to the Relay_Server or printing unsuccessful error
-
-	if (write(sock_fd, req, strlen(req)) < 0) {
-		printf("ERROR : Writing to Socket");
-		exit(EXIT_FAILURE);
-	}
-
-	// Reading Relay_Server response or printing unsuccessful error
 	bzero(buffer, BUFF_LEN);
 
+	// Reading Relay_Server response or printing unsuccessful error
 	if (read(sock_fd, buffer, BUFF_LEN) < 0) {
-		printf("ERROR : Reading from Socket");
+		printf("ERROR : Cannot Read from Relay_Server");
 		exit(EXIT_FAILURE);
 	}
 
 	printf("Peer_Node Received : \n%s\n", buffer);
 
 	if (buffer[23] == '1') {
-		printf("RESPONSE : Peer_Node Accepted\nSUCESSFULLY Connected\n");
-		// Close the connection with Relay_Server gracefully
-		printf("Gracefully Closing Connection ...\n");
+		printf("RESPONSE : Peer_Node Accepted by Relay_Server\nConnected Successfully\n");
 
-		if (shutdown(sock_fd, 0) < 0) {
-			printf("ERROR : Closing Connection");
+		// Relay_Server takes the requisite action (saves IP Address and PORT number)
+		// Close the connection with Relay_Server gracefully
+		printf("Gracefully Closing Connection...\n");
+
+		if (close(sock_fd) < 0) {
+			printf("ERROR : Cannot Close Connection with Relay_Server\n");
 			exit(EXIT_FAILURE);
 		}
 
 		// Starting server behaviour of Peer_Node if successfully connected to server
-		printf("Port of the Peer_Client for Listening : %s\n",&buffer[25]);
+		printf("Port of the Peer_Node to be used for Listening : %s\n",&buffer[25]);
 		start_server(&buffer[25]);
 	} else
-		printf("ERROR : Node NOT Accepted by the Relay_Server\nTry Again...\n");
+		printf("ERROR : Peer_Node Rejected by Relay_Server\nExiting...\n");
 
 	return 0;
 
 }
 
-int listen_fd, conn_fd, sock_fd, max_fd, maxi, i, nready, client[FD_SIZE],lens;
-ssize_t n;
+int listen_fd, client[FD_SIZE];
 fd_set allset;
-char buffer[BUFF_LEN];
-socklen_t client_len;
-struct sockaddr_in serv_addr, client_addr;
 int serv_port;
-char cur_port[10];
 
 int start_server(char *port){
+	int conn_fd, sock_fd, max_fd, maxi, i, nready;
+	char buffer[BUFF_LEN];
+	socklen_t client_len;
+	ssize_t n;
+	struct sockaddr_in serv_addr, client_addr;	
 	serv_port = atoi(port);
+	char cur_port[10];
+
 	strcpy(cur_port,port);
+
 	if ((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-		printf("ERROR : Create listen_fd Socket : %d\n", errno);
+		printf("ERROR : Cannot Create listen_fd Socket : %d\n", errno);
 		exit(EXIT_FAILURE);
 	}
 
@@ -121,16 +101,16 @@ int start_server(char *port){
 
 	// Binding listening socket or printing an unsuccessful error
 	if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0)
-    	printf("setsockopt(SO_REUSEADDR) failed");
+    	printf("ERROR : 'setsockopt(SO_REUSEADDR)' Failed\n");
 
 	if (bind(listen_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == -1) {
-		printf("ERROR : Bind listen_fd Socket : %d\n", errno);
+		printf("ERROR : Cannot Bind listen_fd Socket : %d\n", errno);
 		exit(EXIT_FAILURE);
 	}
 
 	// Listening at listening socket or printing an unsuccessful error
 	if (listen(listen_fd, MAX_BACKLOG) == -1) {
-		printf("ERROR : Listen listen_fd Socket : %d\n", errno);
+		printf("ERROR : Cannot Listen at listen_fd Socket : %d\n", errno);
 		exit(EXIT_FAILURE);
 	}
 
@@ -201,17 +181,13 @@ int start_server(char *port){
 			if ((sock_fd = client[i]) > 0)	{
 				if (FD_ISSET(sock_fd, &allset)) {
 					memset(buffer, 0, sizeof(buffer));
-
 					n = read(sock_fd, buffer, BUFF_LEN);
-					if (n < 0) {
-						printf("ERROR : Reading at sock_fd %d\n",sock_fd);
-						close(sock_fd);
-						FD_CLR(sock_fd, &allset);
-						client[i] = -1;
-						continue;
-					}
-					if (n == 0) {
-						printf("No Data at sock_fd %d\n",sock_fd);
+					if (n <= 0) {
+						if(n<0)
+							printf("ERROR : Cannot Read at sock_fd %d\n",sock_fd);
+						if(n==0)
+							printf("WARNING : No Data at sock_fd %d\n",sock_fd);
+
 						close(sock_fd);
 						FD_CLR(sock_fd, &allset);
 						client[i] = -1;
@@ -230,29 +206,29 @@ int start_server(char *port){
 						}
 					}
 					if (req_type){
-						printf("Received Request for the File : %s\n", &buffer[strlen(req_format)]);
+						printf("Peer_Node Received Request for File : %s\n", &buffer[strlen(req_format)]);
 						FILE *file = fopen(&buffer[strlen(req_format)], "r");
 						if (file == NULL) {
-							printf("Requested File NOT Found\n");
+							printf("Requested File NOT Found at Peer_Node\n");
 							char response[] = "File NOT FOUND";
 							n = write(sock_fd, response, strlen(response));
 							if (n < 0)
-								printf("ERROR : Writing to Socket");
+								printf("ERROR : Cannot Write to Peer_Client");
 							else
-								printf("Requested File NOT Found and message written to Peer_Client\n");
+								printf("Requested File NOT Found and written to Peer_Client\n");
 						}
 
 						// If file found
 						else {
-							printf("Requested File Found\n");
+							printf("Requested File Found at Peer_Node\n");
 							char response[] = "File FOUND";
 							n = write(sock_fd, response, strlen(response));
 							if (n < 0){
-								printf("ERROR : Writing to Socket");
+								printf("ERROR : Cannot Write to Peer_Client");
 								exit(EXIT_FAILURE);
 							}
 							else
-								printf("Requested File Found and message written to Peer_Client\n");
+								printf("Requested File Found and written to Peer_Client\n");
 
 							// Sending the file to the client
 
@@ -266,39 +242,65 @@ int start_server(char *port){
 							char *resp = malloc(fsize + 1);
 							fread(resp, fsize, 1, file);
 							fclose(file);
-							printf("File has the content : \n%s", resp);
+							printf("Printing File Content... \n%s", resp);
 
 							// Sending the requested content to client
 							n = write(sock_fd, resp, strlen(resp));
 							if (n < 0) {
-								printf("ERROR : Writing to Socket");
+								printf("ERROR : Cannot Write File Content to Peer_Client");
 								exit(EXIT_FAILURE);
 							}
 							else {
-								printf("File Sent\n Gracefully Closing Connection...\n");
+								printf("File Sent Successfully\n Gracefully Closing Connection with Peer_Client...\n");
 							}
-
 						}
-						close(sock_fd);
-						FD_CLR(sock_fd, &allset);
-						client[i] = -1;
 					}
 					else{
-						printf("ERROR : Unknown REQUEST Message, Please Check Syntax\n");
-						close(sock_fd);
-						FD_CLR(sock_fd, &allset);
-						client[i] = -1;
+						printf("ERROR : Unexpected Peer_Client Request DUMPING...\n");
 					}
+					close(sock_fd);
+					FD_CLR(sock_fd, &allset);
+					client[i] = -1;
 				}
 			}
 		}
 	}
 }
 
+int connecting_to_relay_server(){
+		// Creating a socket or printing unsuccessful error
+	int sock_fd;
+	struct sockaddr_in serv_addr;
+	if ((sock_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+		printf("ERROR : Cannot Create sock_fd Socket : %d\n", errno);
+		exit(EXIT_FAILURE);
+	}
+	if (server == NULL) {
+		fprintf(stderr, "ERROR : Host Not Found\n");
+		exit(EXIT_FAILURE);
+	}
+
+	bzero(&serv_addr, sizeof(serv_addr));
+	serv_addr.sin_family = AF_INET;
+	bcopy((char *)server->h_addr,(char *)&serv_addr.sin_addr.s_addr,server->h_length);
+	serv_addr.sin_port = htons(relay_server_port);
+
+    // Connecting to the Relay_Server or printing unsuccessful error
+	if (connect(sock_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+		printf("ERROR : Cannot Connect to Relay_Server\n");
+		exit(EXIT_FAILURE);
+	}
+
+	printf("Connection attempt with Relay_Server Successful\nSending Request...\n");
+	return sock_fd;
+}
+
 
 void handle_sigint(int sig){
 	close(listen_fd);
 	FD_CLR(listen_fd, &allset);
+	int sock_fd, i;
+
 	for (i = 0; i < FD_SIZE; i++)	{
 		if ((sock_fd = client[i]) > 0)	{
 			close(sock_fd);
@@ -306,6 +308,18 @@ void handle_sigint(int sig){
 			client[i] = -1;
 		}
 	}
+	sock_fd = connecting_to_relay_server();
+	// Informing the Relay_Server that the request Peer_Node is exiting or printing unsuccessful error
+	char request[100];
+	sprintf(request,"REQUEST : Peer_Exit ");
+	char Port_String[10];
+	sprintf(Port_String,"%d",serv_port);
+	strcat(request, Port_String);
+	if (write(sock_fd, request, strlen(request)) < 0) {
+		printf("ERROR : Cannot Write to Relay_Server");
+		exit(EXIT_FAILURE);
+	}
+
 
 	fflush(stdout);
 	exit(EXIT_FAILURE);

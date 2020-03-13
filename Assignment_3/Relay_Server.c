@@ -9,7 +9,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include <signal.h> 
+#include <signal.h>
 
 #define BUFF_LEN 1024
 #define MAX_BACKLOG 100
@@ -33,13 +33,13 @@ int main(int argc, char **argv) {
 	fclose(output);
 
 	if (argc < 2) {
-		fprintf(stderr, "Please Specify Port Number\nUsage %s PORT\n", argv[0]);
+		fprintf(stderr, "Please Specify Port Number to be used for Relay_Server \nUSAGE : %s Port_Number\n", argv[0]);
 		exit(0);
 	}
 
     // Creating a listening socket or printing an unsuccessful error
 	if ((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-		printf("ERROR : Create listen_fd Socket : %d\n", errno);
+		printf("ERROR : Cannot Create listen_fd Socket : %d\n", errno);
 		exit(EXIT_FAILURE);
 	}
 
@@ -51,18 +51,18 @@ int main(int argc, char **argv) {
 
     // Binding listening socket or printing an unsuccessful error
 	if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0) {
-    	printf("setsockopt(SO_REUSEADDR) Failed");
+    	printf("ERROR : 'setsockopt(SO_REUSEADDR)' Failed\n");
     	exit(EXIT_FAILURE);
 	}
 
 	if (bind(listen_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == -1) {
-		printf("ERROR : Bind listen_fd Socket : %d\n", errno);
+		printf("ERROR : Cannot Bind listen_fd Socket : %d\n", errno);
 		exit(EXIT_FAILURE);
 	}
 
     // Listening at listening socket or printing an unsuccessful error
 	if (listen(listen_fd, MAX_BACKLOG) == -1) {
-		printf("ERROR : Listen listen_fd Socket : %d\n", errno);
+		printf("ERROR : Cannot Listen at listen_fd Socket : %d\n", errno);
 		exit(EXIT_FAILURE);
 	}
 
@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
         // Activity at listening socket (indicating request for new connection)
 		if (FD_ISSET(listen_fd, &client_fd_set)){
 			client_len = sizeof(client_addr);
-			printf("Connection Request at Listening Socket...\n");
+			printf("Connection Request at Listening Socket\n");
 
             // Accepting a connection at listening socket and creating a new connected socket or printing an unsuccessful error
 			if ((conn_fd = accept(listen_fd, (struct sockaddr *)&client_addr, &client_len)) == -1) {
@@ -156,6 +156,10 @@ int main(int argc, char **argv) {
 			if (strcmp(buffer, "REQUEST : Peer_Client") == 0)
 				peer_type = 2;
 
+			if (strstr(buffer, "Exit") != NULL)
+				peer_type = 3;
+
+			printf("%d\n", peer_type);
 			int port = client_addr.sin_port;
 
 			// If the request is by a Peer_Node
@@ -188,7 +192,7 @@ int main(int argc, char **argv) {
 				if (write(sock_fd, resp, strlen(resp)) < 0) {
 					printf("ERROR : Writing in corresponding socket failed");
 					exit(EXIT_FAILURE);
-				}						
+				}
 				if (read(sock_fd, buffer, BUFF_LEN) < 0) {
 					printf("ERROR : Reading from corresponding socket failed");
 					exit(EXIT_FAILURE);
@@ -221,7 +225,28 @@ int main(int argc, char **argv) {
 					}
 				}
 			}
+			else if(peer_type ==3){
+				char client_name[INET_ADDRSTRLEN], peerName[INET_ADDRSTRLEN];
+				int portNum;	
+				int port_to_be_deleted = atoi(&buffer[sizeof("REQUEST : Peer_Exit")]);
+				printf("Peer_Node with port %d \n", port_to_be_deleted);
+				output = fopen("Peer_Nodes_Info_at_Relay_Server.txt", "r");
+				input = fopen("Peer_Nodes_Info_at_Relay_Server_temp.txt", "w");
+				while(fscanf(output,"%s %d",peerName,&portNum)!=EOF){
+					if(port_to_be_deleted == portNum){
+						continue;
+					}
+					fprintf(input, "%s %d\n", peerName, portNum);
+			   }
 
+			   fclose(output);
+			   fclose(input);
+			   remove("Peer_Nodes_Info_at_Relay_Server.txt");
+			   rename("Peer_Nodes_Info_at_Relay_Server_temp.txt", "Peer_Nodes_Info_at_Relay_Server.txt");
+			   printf("Removal of Peer_Node with port %d Successful\n", port_to_be_deleted);
+				
+				   
+			}
 			else
 				printf("ERROR : Unknown REQUEST Message, Please Check Syntax\n");
 			close(sock_fd);
