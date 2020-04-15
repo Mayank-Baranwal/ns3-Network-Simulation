@@ -1,10 +1,10 @@
 TCP Hybla flow 3 (100.101.2.1 -> 100.101.6.1)
-Total Packet Lost: 67
+Total Packet Lost: 0
 Packet Lost due to buffer overflow: 0
-Packet Lost due to Congestion: 67
-Maximum throughput(in kbps): 892.335458
+Packet Lost due to Congestion: 0
+Maximum throughput(in kbps): 23.721493
 Total Packets transmitted: 1000000
-Packets Successfully Transferred: 999933
-Percentage of packet loss (total): 0.006700
+Packets Successfully Transferred: 1000000
+Percentage of packet loss (total): 0.000000
 Percentage of packet loss (due to buffer overflow): 0.000000
-Percentage of packet loss (due to congestion): 0.006700
+Percentage of packet loss (due to congestion): 0.000000

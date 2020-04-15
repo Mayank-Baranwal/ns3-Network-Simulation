@@ -1,10 +1,10 @@
 TCP Westwood+ flow 5 (100.101.3.1 -> 100.101.7.1)
-Total Packet Lost: 60
+Total Packet Lost: 0
 Packet Lost due to buffer overflow: 0
-Packet Lost due to Congestion: 60
-Maximum throughput(in kbps): 952.215946
+Packet Lost due to Congestion: 0
+Maximum throughput(in kbps): 23.721493
 Total Packets transmitted: 1000000
-Packets Successfully Transferred: 999940
-Percentage of packet loss (total): 0.006000
+Packets Successfully Transferred: 1000000
+Percentage of packet loss (total): 0.000000
 Percentage of packet loss (due to buffer overflow): 0.000000
-Percentage of packet loss (due to congestion): 0.006000
+Percentage of packet loss (due to congestion): 0.000000
