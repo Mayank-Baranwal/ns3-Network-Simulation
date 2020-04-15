@@ -1,0 +1,10 @@
+TCP Yeah flow 1 (100.101.1.1 -> 100.101.5.1)
+Total Packet Lost: 65
+Packet Lost due to buffer overflow: 0
+Packet Lost due to Congestion: 65
+Maximum throughput(in kbps): 303.356796
+Total Packets transmitted: 1000000
+Packets Successfully Transferred: 999935
+Percentage of packet loss (total): 0.006500
+Percentage of packet loss (due to buffer overflow): 0.000000
+Percentage of packet loss (due to congestion): 0.006500
