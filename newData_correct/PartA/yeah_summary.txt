@@ -1,0 +1,5 @@
+Tcp Fack Flow 5 (10.1.2.1 -> 10.2.2.1)
+Net Packet Lost: 11
+Packet Lost due to buffer overflow: 0
+Packet Lost due to Congestion: 11
+Max throughput: 2989.79

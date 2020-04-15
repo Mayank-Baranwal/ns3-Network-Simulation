@@ -1,0 +1,5 @@
+TcpHybla Flow 1 (10.1.0.1 -> 10.2.0.1)
+Net Packet Lost: 13
+Packet Lost due to buffer overflow: 0
+Packet Lost due to Congestion: 13
+Max throughput: 3716.48
