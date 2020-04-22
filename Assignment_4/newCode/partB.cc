@@ -20,6 +20,7 @@ using namespace std;
 
 NS_LOG_COMPONENT_DEFINE ("App6");
 
+//Structure to define application and device
 class App_Part_B: public Application {
 	private:
 		virtual void StartApplication(void);
@@ -47,6 +48,7 @@ class App_Part_B: public Application {
 
 };
 
+//Application Constructor
 App_Part_B::App_Part_B(): mSocket(0),
 		    mPeer(),
 		    mPacketSize(0),
@@ -61,6 +63,7 @@ App_Part_B::~App_Part_B() {
 	mSocket = 0;
 }
 
+//Application Specifications setup
 void App_Part_B::Setup(Ptr<Socket> socket, Address address, uint packetSize, uint nPackets, DataRate dataRate) {
 	mSocket = socket;
 	mPeer = address;
@@ -69,6 +72,7 @@ void App_Part_B::Setup(Ptr<Socket> socket, Address address, uint packetSize, uin
 	mDataRate = dataRate;
 }
 
+//Function to start application and sockets
 void App_Part_B::StartApplication() {
 	mRunning = true;
 	mPacketsSent = 0;
@@ -77,6 +81,7 @@ void App_Part_B::StartApplication() {
 	SendPacket();
 }
 
+//Function to stop application and sockets
 void App_Part_B::StopApplication() {
 	mRunning = false;
 	if(mSendEvent.IsRunning()) {
@@ -87,6 +92,7 @@ void App_Part_B::StopApplication() {
 	}
 }
 
+//Function to send packets
 void App_Part_B::SendPacket() {
 	Ptr<Packet> packet = Create<Packet>(mPacketSize);
 	mSocket->Send(packet);
@@ -137,6 +143,7 @@ void printIteration(string tcpVariant, int nodenum, int index, Ptr<OutputStreamW
 void createFlowSummary(Ptr<Ipv4FlowClassifier> flowClassifier, map<FlowId, FlowMonitor::FlowStats> flowStats);
 
 int main(){
+	//Dumbell topolgy specifications
 	string rateHR = "100Mbps";
 	string latencyHR = "20ms";
 	string rateRR = "10Mbps";
@@ -156,6 +163,7 @@ int main(){
 	string transferSpeed = "400Mbps";
 
 	mkdir("PartB", S_IRWXU);
+	//Defining dumbell topology
 	cout << "Stage 1: Defining dumbell topology" << endl;
 	PointToPointHelper HostRouterLink = configureP2PHelper(rateHR, latencyHR, queueSizeHR);
 	PointToPointHelper RouterRouterLink = configureP2PHelper(rateRR, latencyRR, queueSizeRR);
@@ -166,6 +174,7 @@ int main(){
 	Ipv4AddressHelper senderIP = Ipv4AddressHelper("10.1.0.0", "255.255.255.0");
 	Ipv4AddressHelper receiverIP = Ipv4AddressHelper("10.2.0.0", "255.255.255.0");
 	Ipv4AddressHelper routerIP = Ipv4AddressHelper("10.3.0.0", "255.255.255.0");
+	//Assigning IP address to devices
 	cout << "Stage 3: Assigning IP Addresses" << endl;
 	dumbell.AssignIpv4Addresses (senderIP, receiverIP, routerIP);
 	
@@ -182,6 +191,7 @@ int main(){
 										MultiFlowStartTime+netRunningTime, packetSize, totalPackets, 
 										transferSpeed, MultiFlowStartTime, MultiFlowStartTime+netRunningTime);
 
+	//Running all simulations
 	cout << "Stage 4a: Initiating TCP Hybla Simulation" << endl;
 	InitiateSimulation(TcpHyblaSocket, "hybla", 5, 1, FirstFlowStartTime);
 	cout << "Stage 4b: Initiating TCP Westwood+ Simulation" << endl;
@@ -190,6 +200,7 @@ int main(){
 	InitiateSimulation(TcpYeahSocket, "yeah", 7, 3, FirstFlowStartTime);
 
 	Ipv4GlobalRoutingHelper::PopulateRoutingTables();
+	//Initialize flow monitor
 	cout << "Stage 5: Running Flow Monitor. Please Wait" << endl;
 	Ptr<FlowMonitor> flowmonitor;
 	FlowMonitorHelper flowmonitorHelper;
@@ -207,6 +218,8 @@ int main(){
 	return 0;
 
 }
+
+//Configuring P2P links 
 PointToPointHelper configureP2PHelper(string rate, string latency, string queueSize)
 {
 	PointToPointHelper p2p;
@@ -224,6 +237,8 @@ static void CapturePacketDrop(double startTime, uint myId) {
 	}
 	dropPacketBufferFull[myId]++;
 }
+
+//Checking performance of packets
 void ReceivedPacket(Ptr<OutputStreamWrapper> stream, double startTime, string context, Ptr<const Packet> p, const Address& addr){
 	double timeNow = Simulator::Now().GetSeconds();
 
@@ -252,6 +267,8 @@ void ReceivedPacketIPV4(Ptr<OutputStreamWrapper> stream, double startTime, strin
 			MaxFlowThroughput[context] = tp;
 	}
 }
+
+//Set up flow between sender and receiver
 Ptr<Socket> uniFlow(Address sinkAddress, uint sinkPort, string tcpVariant, 
 					Ptr<Node> hostNode, Ptr<Node> sinkNode, double startTime, 
 					double stopTime, uint packetSize, uint totalPackets,
@@ -281,6 +298,7 @@ Ptr<Socket> uniFlow(Address sinkAddress, uint sinkPort, string tcpVariant,
 
 	return ns3TcpSocket;
 }
+//Fucntion to start simulation 
 void InitiateSimulation(Ptr<Socket> TcpSocket, string tcpVariant, int nodenum, int index, double startTime){
 	AsciiTraceHelper asciiTraceHelper;
 	Ptr<OutputStreamWrapper> CwndStats = asciiTraceHelper.CreateFileStream("PartB/data_"+tcpVariant+"_cwnd.csv");
@@ -294,6 +312,8 @@ void InitiateSimulation(Ptr<Socket> TcpSocket, string tcpVariant, int nodenum, i
 	string sink_ = "/NodeList/" + to_string(nodenum) + "/$ns3::Ipv4L3Protocol/Rx";
 	Config::Connect(sink_, MakeBoundCallback(&ReceivedPacketIPV4, ThroughputStats, startTime));
 }
+
+//Print details of each iteration
 void printIteration(string tcpVariant, int nodenum, int index, Ptr<OutputStreamWrapper> summary, 
 					Ipv4FlowClassifier::FiveTuple flow_elem, map<FlowId, FlowMonitor::FlowStats>::const_iterator flow_stat){
 	if(dropPacketBufferFull.find(index)==dropPacketBufferFull.end())
@@ -304,6 +324,8 @@ void printIteration(string tcpVariant, int nodenum, int index, Ptr<OutputStreamW
 	*summary->GetStream() << "Number of Packets lost due to Congestion: " << flow_stat->second.lostPackets - dropPacketBufferFull[index] << "\n";
 	*summary->GetStream() << "Maximum throughput(in kbps): " << MaxFlowThroughput["/NodeList/" + to_string(nodenum) + "/$ns3::Ipv4L3Protocol/Rx"] << endl;
 }
+
+//Summarize runs of all flows
 void createFlowSummary(Ptr<Ipv4FlowClassifier> flowClassifier, map<FlowId, FlowMonitor::FlowStats> flowStats){
 
 	AsciiTraceHelper asciiTraceHelper;
