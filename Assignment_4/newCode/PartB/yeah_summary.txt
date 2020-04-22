@@ -1,0 +1,5 @@
+TCP Yeah flow 4 (10.1.2.1 ---> 10.2.2.1)
+Total number of Packets lost: 0
+Number of Packets lost due to buffer overflow: 0
+Number of Packets lost due to Congestion: 0
+Maximum throughput(in kbps): 2857.5
